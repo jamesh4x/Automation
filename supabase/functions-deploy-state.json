@@ -1,0 +1,9 @@
+{
+  "projectId": "72625711",
+  "functions": {
+    "groq-ai": {
+      "hasChanged": false,
+      "hash": "ef08f9c391ad86dcecde3e984d93eb2d612de6eb83a33fe47aedbba3dcc5a3dd"
+    }
+  }
+}

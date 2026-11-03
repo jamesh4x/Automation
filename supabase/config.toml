@@ -1,0 +1,2 @@
+[functions.groq-ai]
+verify_jwt = true
