@@ -69,7 +69,7 @@ async function callGroqChat(apiKey: string, system: string, user: unknown): Prom
   });
   if (!res.ok) {
     const detail = await res.text();
-    console.error("Groq chat error", res.status, detail);
+    console.error("Groq chat error", res.status, detail, "request_chars=", system.length + JSON.stringify(user).length, "model=", CHAT_MODEL);
     if (res.status === 404) throw new HttpError(502, "Model AI untuk penyusunan laporan tidak tersedia. Hubungi admin untuk memperbarui model.");
     if (res.status === 401 || res.status === 403) throw new HttpError(502, "Kunci layanan AI tidak valid. Periksa konfigurasi GROQ_API_KEY.");
     if (res.status === 429) throw new HttpError(429, "Batas penggunaan layanan AI tercapai. Coba lagi beberapa menit lagi.");
@@ -200,6 +200,54 @@ async function transcribe(supabase: ReturnType<typeof createClient>, apiKey: str
   });
 }
 
+const TRANSCRIPT_CHUNK_CHARS = 8000;
+
+function splitTranscript(text: string): string[] {
+  const chunks: string[] = [];
+  let rest = text.trim();
+  while (rest.length > TRANSCRIPT_CHUNK_CHARS) {
+    let cut = rest.lastIndexOf(" ", TRANSCRIPT_CHUNK_CHARS);
+    if (cut < TRANSCRIPT_CHUNK_CHARS / 2) cut = TRANSCRIPT_CHUNK_CHARS;
+    chunks.push(rest.slice(0, cut).trim());
+    rest = rest.slice(cut).trim();
+  }
+  if (rest) chunks.push(rest);
+  return chunks;
+}
+
+const uniqueStrings = (values: unknown[]) =>
+  Array.from(new Set(values.filter((v): v is string => typeof v === "string" && v.trim() !== "")));
+
+const uniqueObjects = (values: unknown[]) => {
+  const seen = new Set<string>();
+  return values.filter((v) => {
+    const key = JSON.stringify(v);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const firstFilled = <T>(items: (T | null | undefined)[]) =>
+  items.find((item) => item && (typeof item !== "object" || Object.values(item).some((v) => v))) ?? null;
+
+function mergeExtractions(parts: Record<string, any>[]) {
+  const supplierFields = ["name", "address", "contact_person", "contact_info"] as const;
+  const supplier = Object.fromEntries(
+    supplierFields.map((field) => [field, parts.map((p) => p.supplier?.[field]).find((v) => typeof v === "string" && v.trim()) ?? null])
+  );
+  return {
+    supplier,
+    products: uniqueObjects(parts.flatMap((p) => (Array.isArray(p.products) ? p.products : []))),
+    production_capacity: firstFilled(parts.map((p) => p.production_capacity?.value ? p.production_capacity : null)),
+    payment_terms: firstFilled(parts.map((p) => p.payment_terms?.value ? p.payment_terms : null)),
+    delivery_terms: firstFilled(parts.map((p) => p.delivery_terms?.value ? p.delivery_terms : null)),
+    certifications: uniqueStrings(parts.flatMap((p) => (Array.isArray(p.certifications) ? p.certifications : []))),
+    missing_information: uniqueStrings(parts.flatMap((p) => (Array.isArray(p.missing_information) ? p.missing_information : []))),
+    conflicts: uniqueObjects(parts.flatMap((p) => (Array.isArray(p.conflicts) ? p.conflicts : []))),
+  };
+}
+
 async function extract(supabase: ReturnType<typeof createClient>, apiKey: string, surveyId: string) {
   const transcript = await getLatestRun(supabase, surveyId, "transcribe");
   if (!transcript) throw new HttpError(400, "Belum ada transkrip. Jalankan transkripsi rekaman terlebih dahulu.");
@@ -212,13 +260,46 @@ async function extract(supabase: ReturnType<typeof createClient>, apiKey: string
   if (error) throw error;
   if (!survey) throw new HttpError(404, "Survei tidak ditemukan.");
 
-  const output = await callGroqChat(apiKey, `${EXTRACTION_RULES}\n\n${EXTRACTION_SCHEMA}`, {
-    survey,
-    transcript: transcript.output,
-  });
+  const chunks = splitTranscript(String(transcript.output?.text ?? ""));
+  if (chunks.length === 0) throw new HttpError(400, "Teks transkrip kosong.");
 
-  return saveRun(supabase, { survey_id: surveyId, action: "extract", model: CHAT_MODEL, output });
+  const { data: savedChunks, error: chunkError } = await supabase
+    .from("survey_ai_runs")
+    .select("output")
+    .eq("survey_id", surveyId)
+    .eq("action", "extract-chunk");
+  if (chunkError) throw chunkError;
+  const done = new Map<number, Record<string, any>>();
+  for (const row of savedChunks ?? []) {
+    if (row.output?.source_run_id === transcript.id) done.set(row.output.chunk_index, row.output.result);
+  }
+
+  const parts: Record<string, any>[] = [];
+  for (let i = 0; i < chunks.length; i++) {
+    let result = done.get(i);
+    if (!result) {
+      result = await callGroqChat(apiKey, `${EXTRACTION_RULES}\n\n${EXTRACTION_SCHEMA}`, {
+        survey,
+        transcript_part: { number: i + 1, total: chunks.length, text: chunks[i] },
+      });
+      await saveRun(supabase, {
+        survey_id: surveyId,
+        action: "extract-chunk",
+        model: CHAT_MODEL,
+        output: { chunk_index: i, source_run_id: transcript.id, result },
+      });
+    }
+    parts.push(result);
+  }
+
+  return saveRun(supabase, {
+    survey_id: surveyId,
+    action: "extract",
+    model: CHAT_MODEL,
+    output: { ...mergeExtractions(parts), chunk_count: chunks.length, source_run_id: transcript.id },
+  });
 }
+
 
 async function report(supabase: ReturnType<typeof createClient>, apiKey: string, surveyId: string) {
   const extraction = await getLatestRun(supabase, surveyId, "extract");
