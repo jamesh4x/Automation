@@ -83,12 +83,11 @@
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     padding: 24px;
-    transition: box-shadow 0.35s var(--ease-out), transform 0.35s var(--ease-out);
+    transition: border-color 0.35s var(--ease-out);
   }
 
   .stat-card:hover {
-    box-shadow: 0 10px 30px -16px rgba(17, 18, 20, 0.22);
-    transform: translateY(-2px);
+    border-color: var(--line-strong);
   }
 
   .btn-primary {
@@ -96,18 +95,23 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    background: var(--graphite-800);
+    min-height: 44px;
+    background: var(--accent);
     color: #ffffff;
     border-radius: 999px;
-    padding: 9px 18px;
+    padding: 10px 20px;
     font-weight: 500;
     font-size: 14px;
-    transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    transition: background 0.2s ease, transform 0.15s ease;
   }
 
   .btn-primary:hover {
-    background: var(--graphite-700);
-    box-shadow: 0 8px 20px -10px rgba(17, 18, 20, 0.5);
+    background: var(--accent-hover);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 
   .btn-primary:active {
@@ -121,9 +125,10 @@
     gap: 8px;
     background: var(--surface);
     color: var(--ink);
+    min-height: 44px;
     border: 1px solid var(--line-strong);
     border-radius: 999px;
-    padding: 9px 18px;
+    padding: 10px 20px;
     font-weight: 500;
     font-size: 14px;
     transition: background 0.2s ease, border-color 0.2s ease;
@@ -143,6 +148,7 @@
     width: 100%;
     background: var(--surface);
     border: 1px solid var(--line-strong);
+    min-height: 44px;
     border-radius: var(--radius-md);
     padding: 10px 14px;
     font-size: 14px;
@@ -222,4 +228,13 @@
 
 .animate-fade-in {
   animation: fadeIn 0.35s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
