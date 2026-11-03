@@ -6,6 +6,7 @@ import Reveal from '../components/Reveal';
 import TagInput from '../components/TagInput';
 import FileUploadZone from '../components/FileUploadZone';
 import { listSuppliers, saveSurvey, type NewSurveyInput } from '../lib/surveyRepository';
+import { extractSurvey, generateReport, transcribeRecording } from '../lib/groqService';
 import type { FileKind } from '../lib/fileRules';
 import type { TeamMember } from '../types';
 
@@ -59,6 +60,7 @@ export default function NewSurvey() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [aiProgress, setAiProgress] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -125,10 +127,20 @@ export default function NewSurvey() {
 
     setSubmitting(true);
     try {
-      await saveSurvey(input);
+      const savedSurvey = await saveSurvey(input);
+      if (savedSurvey.recordingIds.length > 0) {
+        setAiProgress('Mentranskripsi rekaman…');
+        await transcribeRecording(savedSurvey.surveyId, savedSurvey.recordingIds[0]);
+        setAiProgress('Mengekstrak data supplier…');
+        await extractSurvey(savedSurvey.surveyId);
+        setAiProgress('Menyusun laporan survei…');
+        await generateReport(savedSurvey.surveyId);
+      }
       resetForm();
+      setAiProgress(null);
       setSaved(true);
     } catch (err) {
+      setAiProgress(null);
       setError(err instanceof Error ? err.message : 'Survei belum dapat disimpan. Silakan coba lagi.');
     } finally {
       setSubmitting(false);
@@ -144,6 +156,10 @@ export default function NewSurvey() {
         title="New Survey"
         subtitle="Catat kunjungan supplier dan unggah bahan survei. Laporan dibuat dari bahan ini."
       />
+
+      {aiProgress && (
+        <div className="animate-fade-in mb-6 rounded-2xl border border-[var(--accent)]/20 bg-[var(--accent-soft)] p-4 text-[14px] font-medium text-[var(--accent)]">{aiProgress}</div>
+      )}
 
       {saved && (
         <div className="animate-fade-in mb-6 flex items-center gap-3 rounded-2xl border border-[var(--success)]/20 bg-[var(--success-soft)] p-4">

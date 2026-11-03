@@ -173,7 +173,7 @@ async function findOrCreateSupplier(input: NewSurveyInput): Promise<string> {
   return id;
 }
 
-export async function saveSurvey(input: NewSurveyInput): Promise<void> {
+export async function saveSurvey(input: NewSurveyInput): Promise<{ surveyId: string; recordingIds: string[] }> {
   const checkedFiles = input.files.map(({ kind, file }) => {
     const check = checkFile(kind, file);
     if (!check.ok) throw new Error(check.reason);
@@ -217,8 +217,10 @@ export async function saveSurvey(input: NewSurveyInput): Promise<void> {
     }
   }
 
+  const recordingIds: string[] = [];
   for (const { kind, file, mimeType } of checkedFiles) {
     const storagePath = `${surveyId}/${crypto.randomUUID()}-${toSafeFileName(file.name)}`;
+    const fileId = crypto.randomUUID();
 
     const { error: uploadError } = await supabase.storage
       .from('survey-files')
@@ -229,6 +231,7 @@ export async function saveSurvey(input: NewSurveyInput): Promise<void> {
     }
 
     const { error: fileError } = await supabase.from('survey_files').insert({
+      id: fileId,
       survey_id: surveyId,
       kind,
       storage_path: storagePath,
@@ -240,5 +243,7 @@ export async function saveSurvey(input: NewSurveyInput): Promise<void> {
       console.error(fileError);
       throw new Error(`Berkas ${file.name} terunggah, tetapi pencatatannya gagal. Silakan periksa ulang.`);
     }
+    if (kind === 'recording') recordingIds.push(fileId);
   }
+  return { surveyId, recordingIds };
 }
