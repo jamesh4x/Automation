@@ -53,13 +53,14 @@ Aturan wajib:
 - Buat dua versi laporan dengan struktur yang sama: "id_text" dalam bahasa Indonesia, dan "zh_text" dalam bahasa Mandarin Sederhana.
 - Balas HANYA dengan objek JSON: { "id_text": string, "zh_text": string }. Gunakan paragraf dan poin dengan baris baru (\\n).`;
 
-async function callGroqChat(apiKey: string, system: string, user: unknown): Promise<Record<string, unknown>> {
+async function callGroqChat(apiKey: string, system: string, user: unknown, maxCompletionTokens = 1200): Promise<Record<string, unknown>> {
   const res = await fetch(`${GROQ_BASE}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: CHAT_MODEL,
       temperature: 0,
+      max_completion_tokens: maxCompletionTokens,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system },
@@ -72,7 +73,7 @@ async function callGroqChat(apiKey: string, system: string, user: unknown): Prom
     console.error("Groq chat error", res.status, detail, "request_chars=", system.length + JSON.stringify(user).length, "model=", CHAT_MODEL);
     if (res.status === 404) throw new HttpError(502, "Model AI untuk penyusunan laporan tidak tersedia. Hubungi admin untuk memperbarui model.");
     if (res.status === 401 || res.status === 403) throw new HttpError(502, "Kunci layanan AI tidak valid. Periksa konfigurasi GROQ_API_KEY.");
-    if (res.status === 429) throw new HttpError(429, "Batas penggunaan layanan AI tercapai. Coba lagi beberapa menit lagi.");
+    if (res.status === 413 || res.status === 429) throw new HttpError(429, "Batas token per menit layanan AI tercapai. Data akan diproses dalam bagian lebih kecil; coba lagi beberapa saat lagi.");
     throw new HttpError(502, `Layanan AI menolak permintaan (kode ${res.status}).`);
   }
   const data = await res.json();
@@ -200,7 +201,7 @@ async function transcribe(supabase: ReturnType<typeof createClient>, apiKey: str
   });
 }
 
-const TRANSCRIPT_CHUNK_CHARS = 8000;
+const TRANSCRIPT_CHUNK_CHARS = 3200;
 
 function splitTranscript(text: string): string[] {
   const chunks: string[] = [];
@@ -281,7 +282,7 @@ async function extract(supabase: ReturnType<typeof createClient>, apiKey: string
       result = await callGroqChat(apiKey, `${EXTRACTION_RULES}\n\n${EXTRACTION_SCHEMA}`, {
         survey,
         transcript_part: { number: i + 1, total: chunks.length, text: chunks[i] },
-      });
+      }, 900);
       await saveRun(supabase, {
         survey_id: surveyId,
         action: "extract-chunk",
@@ -313,7 +314,7 @@ async function report(supabase: ReturnType<typeof createClient>, apiKey: string,
   if (error) throw error;
   if (!survey) throw new HttpError(404, "Survei tidak ditemukan.");
 
-  const output = await callGroqChat(apiKey, REPORT_RULES, { survey, extraction: extraction.output });
+  const output = await callGroqChat(apiKey, REPORT_RULES, { survey, extraction: extraction.output }, 2800);
   if (typeof output.id_text !== "string" || typeof output.zh_text !== "string") {
     throw new HttpError(502, "Respons laporan tidak lengkap.");
   }
