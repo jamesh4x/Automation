@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const GROQ_BASE = "https://api.groq.com/openai/v1";
 const WHISPER_MODEL = "whisper-large-v3";
-const CHAT_MODEL = "llama-3.3-70b-versatile";
+const CHAT_MODEL = "openai/gpt-oss-120b";
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -68,7 +68,11 @@ async function callGroqChat(apiKey: string, system: string, user: unknown): Prom
     }),
   });
   if (!res.ok) {
-    console.error("Groq chat error", res.status, await res.text());
+    const detail = await res.text();
+    console.error("Groq chat error", res.status, detail);
+    if (res.status === 404) throw new HttpError(502, "Model AI untuk penyusunan laporan tidak tersedia. Hubungi admin untuk memperbarui model.");
+    if (res.status === 401 || res.status === 403) throw new HttpError(502, "Kunci layanan AI tidak valid. Periksa konfigurasi GROQ_API_KEY.");
+    if (res.status === 429) throw new HttpError(429, "Batas penggunaan layanan AI tercapai. Coba lagi beberapa menit lagi.");
     throw new HttpError(502, `Layanan AI menolak permintaan (kode ${res.status}).`);
   }
   const data = await res.json();
