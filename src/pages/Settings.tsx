@@ -1,36 +1,71 @@
 import { useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { User, Bell, Globe, Shield, Mic, Check } from 'lucide-react';
+import { User, Bell, Globe, Shield, Sparkles, Check, CircleAlert, Loader2 } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import Reveal from '../components/Reveal';
+import { testGroqConnection, type GroqStatus } from '../lib/groqService';
+
+type GroqCheck =
+  | { state: 'idle' }
+  | { state: 'loading' }
+  | { state: 'ok'; status: GroqStatus }
+  | { state: 'error'; message: string };
 
 export default function Settings() {
   const [notif, setNotif] = useState(true);
   const [autoReport, setAutoReport] = useState(false);
   const [bilingualDefault, setBilingualDefault] = useState(true);
-  const [saved, setSaved] = useState(false);
+  const [groq, setGroq] = useState<GroqCheck>({ state: 'idle' });
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  const handleTestGroq = async () => {
+    setGroq({ state: 'loading' });
+    try {
+      const status = await testGroqConnection();
+      setGroq({ state: 'ok', status });
+    } catch (err) {
+      setGroq({ state: 'error', message: err instanceof Error ? err.message : 'Uji koneksi gagal. Silakan coba lagi.' });
+    }
   };
 
   return (
     <div className="pb-12 max-w-3xl">
       <PageHeader title="Settings" subtitle="Pengaturan aplikasi, preferensi laporan, dan notifikasi" />
 
-      {saved && (
-        <div className="mb-6 flex items-center gap-3 p-4 rounded-2xl animate-fade-in" style={{ background: '#34c75914', border: '1px solid #34c75933' }}>
-          <div className="flex items-center justify-center rounded-full" style={{ width: 24, height: 24, background: '#34c759' }}>
-            <Check size={16} className="text-white" />
-          </div>
-          <p className="text-[14px] font-medium" style={{ color: '#1a7a32' }}>Pengaturan tersimpan.</p>
-        </div>
-      )}
-
-      <form onSubmit={handleSave} className="space-y-5">
+      <div className="space-y-5">
         <Reveal>
+          <Section title="Koneksi AI (Groq)" icon={Sparkles}>
+            <p className="text-[13px]" style={{ color: 'var(--muted)' }}>
+              Memeriksa apakah layanan transkripsi suara dan penyusunan laporan AI dapat dihubungi dari server.
+            </p>
+            <div>
+              <button type="button" className="btn-primary" onClick={handleTestGroq} disabled={groq.state === 'loading'}>
+                {groq.state === 'loading' && <Loader2 size={15} className="animate-spin" />}
+                {groq.state === 'loading' ? 'Menguji koneksi…' : 'Uji koneksi'}
+              </button>
+            </div>
+            {groq.state === 'ok' && (
+              <div role="status" className="rounded-xl p-4 text-[13px] space-y-1" style={{ background: 'var(--success-soft)' }}>
+                <p className="flex items-center gap-2 font-medium" style={{ color: 'var(--success)' }}>
+                  <Check size={14} /> Koneksi ke Groq berhasil
+                </p>
+                <p style={{ color: 'var(--muted)' }}>
+                  Transkripsi ({groq.status.whisper_model}): {groq.status.whisper_available ? 'tersedia' : 'tidak tersedia'}
+                </p>
+                <p style={{ color: 'var(--muted)' }}>
+                  Penyusunan laporan ({groq.status.chat_model}): {groq.status.chat_available ? 'tersedia' : 'tidak tersedia'}
+                </p>
+              </div>
+            )}
+            {groq.state === 'error' && (
+              <div role="alert" className="flex items-start gap-2 rounded-xl p-4 text-[13px]" style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}>
+                <CircleAlert size={14} className="mt-0.5 shrink-0" />
+                <p>Koneksi ke Groq gagal: {groq.message}</p>
+              </div>
+            )}
+          </Section>
+        </Reveal>
+
+        <Reveal delay={80}>
           <Section title="Profil" icon={User}>
             <Field label="Nama Tim Purchasing">
               <input className="input-field" defaultValue="Tim Purchasing — Supplier Survey" />
@@ -41,7 +76,7 @@ export default function Settings() {
           </Section>
         </Reveal>
 
-        <Reveal delay={80}>
+        <Reveal delay={140}>
           <Section title="Preferensi Laporan" icon={Globe}>
             <Toggle
               label="Laporan bilingual sebagai default"
@@ -65,7 +100,7 @@ export default function Settings() {
           </Section>
         </Reveal>
 
-        <Reveal delay={160}>
+        <Reveal delay={200}>
           <Section title="Notifikasi" icon={Bell}>
             <Toggle
               label="Notifikasi email"
@@ -76,7 +111,7 @@ export default function Settings() {
           </Section>
         </Reveal>
 
-        <Reveal delay={220}>
+        <Reveal delay={260}>
           <Section title="Keamanan" icon={Shield}>
             <Field label="Frekuensi Ubah Password">
               <select className="input-field">
@@ -87,16 +122,7 @@ export default function Settings() {
             </Field>
           </Section>
         </Reveal>
-
-        <Reveal delay={280}>
-          <div className="flex justify-end pt-2">
-            <button type="submit" className="btn-primary flex items-center gap-2">
-              <Check size={16} />
-              Simpan Pengaturan
-            </button>
-          </div>
-        </Reveal>
-      </form>
+      </div>
     </div>
   );
 }
