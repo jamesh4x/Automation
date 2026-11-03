@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Search, MapPin, Building2, Phone } from 'lucide-react';
+import { Search, MapPin, Building2, Phone, Trash2 } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import Reveal from '../components/Reveal';
-import { listSuppliers, listSurveys } from '../lib/surveyRepository';
+import { deleteSupplier, listSuppliers, listSurveys } from '../lib/surveyRepository';
 import { useLoader } from '../hooks/useLoader';
 import type { Supplier, SupplierStatus, SurveyRecord } from '../types';
 
@@ -21,6 +21,22 @@ export default function SupplierDatabase() {
   const surveysState = useLoader(listSurveys);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string>('all');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDelete = async (supplier: Supplier) => {
+    if (!window.confirm(`Hapus supplier "${supplier.name}"? Tindakan ini tidak dapat dibatalkan.`)) return;
+    setDeletingId(supplier.id);
+    setDeleteError(null);
+    try {
+      await deleteSupplier(supplier.id);
+      suppliersState.reload();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Supplier belum dapat dihapus. Silakan coba lagi.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const suppliers = suppliersState.data ?? [];
   const surveys = surveysState.data ?? [];
@@ -78,6 +94,10 @@ export default function SupplierDatabase() {
         <div role="alert" className="glass-card p-6 text-[14px] text-[var(--danger)]">{error}</div>
       )}
 
+      {deleteError && (
+        <p role="alert" className="mb-4 text-[13px] text-[var(--danger)]">{deleteError}</p>
+      )}
+
       {!loading && !error && filtered.length === 0 && (
         <div className="glass-card p-12 text-center">
           <Building2 size={32} className="mx-auto mb-3" style={{ color: 'var(--muted)' }} />
@@ -97,7 +117,7 @@ export default function SupplierDatabase() {
               <table className="w-full">
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--line)' }}>
-                    {['Supplier', 'Kategori', 'Lokasi', 'Kontak', 'Survei Terakhir', 'Status'].map((h) => (
+                    {['Supplier', 'Kategori', 'Lokasi', 'Kontak', 'Survei Terakhir', 'Status', 'Aksi'].map((h) => (
                       <th key={h} className="text-left text-[12px] font-semibold uppercase tracking-wider px-5 py-3.5" style={{ color: 'var(--muted)' }}>{h}</th>
                     ))}
                   </tr>
@@ -130,6 +150,19 @@ export default function SupplierDatabase() {
                         <td className="px-5 py-4 text-[13px]" style={{ color: 'var(--muted)' }}>{last ? formatDate(last.surveyDate) : '—'}</td>
                         <td className="px-5 py-4">
                           <span className="badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => handleDelete(s)}
+                            disabled={!!last || deletingId === s.id}
+                            title={last ? 'Supplier yang punya survei tidak dapat dihapus' : 'Hapus supplier'}
+                            aria-label={`Hapus supplier ${s.name}`}
+                          >
+                            <Trash2 size={14} />
+                            {deletingId === s.id ? 'Menghapus…' : 'Hapus'}
+                          </button>
                         </td>
                       </tr>
                     );

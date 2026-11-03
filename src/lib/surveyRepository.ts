@@ -105,6 +105,18 @@ export async function listSurveys(): Promise<SurveyRecord[]> {
   return (data as unknown as SurveyRow[]).map(mapSurvey);
 }
 
+export async function deleteSupplier(supplierId: string): Promise<void> {
+  const { error, count } = await supabase
+    .from('suppliers')
+    .delete({ count: 'exact' })
+    .eq('id', supplierId);
+  if (error) {
+    console.error(error);
+    throw new Error('Supplier belum dapat dihapus. Silakan coba lagi.');
+  }
+  if (count === 0) throw new Error('Supplier tidak dapat dihapus karena masih memiliki survei.');
+}
+
 export interface NewSurveyInput {
   supplierName: string;
   surveyDate: string;
