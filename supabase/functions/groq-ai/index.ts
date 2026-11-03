@@ -81,6 +81,44 @@ async function callGroqChat(apiKey: string, system: string, user: unknown): Prom
   }
 }
 
+async function checkStatus(apiKey: string) {
+  const res = await fetch(`${GROQ_BASE}/models`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  if (!res.ok) {
+    console.error("Groq models error", res.status, await res.text());
+    throw new HttpError(502, `Koneksi ke Groq gagal (kode ${res.status}). Periksa GROQ_API_KEY.`);
+  }
+  const data = await res.json();
+  const ids: string[] = Array.isArray(data?.data) ? data.data.map((m: { id: string }) => m.id) : [];
+  return {
+    whisper_available: ids.includes(WHISPER_MODEL),
+    chat_available: ids.includes(CHAT_MODEL),
+    whisper_model: WHISPER_MODEL,
+    chat_model: CHAT_MODEL,
+    models_listed: ids.length,
+  };
+}
+
+async function saveReviewedTranscript(supabase: ReturnType<typeof createClient>, surveyId: string, text: unknown) {
+  if (typeof text !== "string" || text.trim() === "") throw new HttpError(400, "Teks transkrip tidak boleh kosong.");
+  if (text.length > 200000) throw new HttpError(413, "Teks transkrip terlalu panjang.");
+  const original = await getLatestRun(supabase, surveyId, "transcribe");
+  if (!original) throw new HttpError(400, "Belum ada transkrip untuk dikoreksi.");
+  const { data: source } = await supabase
+    .from("survey_ai_runs")
+    .select("source_file_id")
+    .eq("id", original.id)
+    .maybeSingle();
+  return saveRun(supabase, {
+    survey_id: surveyId,
+    action: "transcribe",
+    model: "manual-review",
+    source_file_id: source?.source_file_id ?? undefined,
+    output: { text: text.trim(), reviewed: true, source_run_id: original.id },
+  });
+}
+
 async function getLatestRun(supabase: ReturnType<typeof createClient>, surveyId: string, action: string) {
   const { data, error } = await supabase
     .from("survey_ai_runs")
@@ -212,8 +250,10 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => null);
     const action = body?.action;
+    if (action === "status") return json({ status: await checkStatus(apiKey) });
+
+    if (!["transcribe", "save-transcript", "extract", "report"].includes(action)) throw new HttpError(400, "Aksi tidak dikenali.");
     const surveyId = body?.surveyId;
-    if (!["transcribe", "extract", "report"].includes(action)) throw new HttpError(400, "Aksi tidak dikenali.");
     if (typeof surveyId !== "string" || !UUID_PATTERN.test(surveyId)) throw new HttpError(400, "ID survei tidak valid.");
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -221,9 +261,11 @@ Deno.serve(async (req) => {
     const run =
       action === "transcribe"
         ? await transcribe(supabase, apiKey, surveyId, body?.fileId)
-        : action === "extract"
-          ? await extract(supabase, apiKey, surveyId)
-          : await report(supabase, apiKey, surveyId);
+        : action === "save-transcript"
+          ? await saveReviewedTranscript(supabase, surveyId, body?.text)
+          : action === "extract"
+            ? await extract(supabase, apiKey, surveyId)
+            : await report(supabase, apiKey, surveyId);
 
     return json({ run });
   } catch (err) {

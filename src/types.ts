@@ -50,4 +50,5 @@ export interface SurveyRecord {
   createdAt: string;
   team: TeamMember[];
   fileKinds: FileKind[];
+  recordingIds: string[];
 }

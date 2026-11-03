@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import Reveal from '../components/Reveal';
 import { listSurveys } from '../lib/surveyRepository';
 import { useLoader } from '../hooks/useLoader';
+import TranscriptPanel from '../components/TranscriptPanel';
 import type { SurveyStatus } from '../types';
 
 const statusConfig: Record<SurveyStatus, { label: string; color: string; bg: string }> = {
@@ -23,6 +24,7 @@ export default function SurveyHistory() {
   const { data: surveys, loading, error, reload } = useLoader(listSurveys);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterId>('all');
+  const [openTranscriptId, setOpenTranscriptId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -127,8 +129,22 @@ export default function SurveyHistory() {
                       <AttachBadge has={s.fileKinds.includes('recording')} icon={Mic} label="Rekaman" />
                       <AttachBadge has={s.fileKinds.includes('photo')} icon={Camera} label="Foto" />
                       <AttachBadge has={s.fileKinds.includes('document')} icon={FileText} label="Dokumen" />
+                      {s.recordingIds.length > 0 && (
+                        <button
+                          className="btn-secondary"
+                          aria-expanded={openTranscriptId === s.id}
+                          onClick={() => setOpenTranscriptId(openTranscriptId === s.id ? null : s.id)}
+                        >
+                          Transkrip
+                        </button>
+                      )}
                     </div>
                   </div>
+                  {openTranscriptId === s.id && (
+                    <div className="mt-5 border-t border-[var(--line)] pt-5">
+                      <TranscriptPanel surveyId={s.id} recordingIds={s.recordingIds} />
+                    </div>
+                  )}
                 </div>
               </Reveal>
             );

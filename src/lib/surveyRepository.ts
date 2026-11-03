@@ -6,7 +6,7 @@ const SUPPLIER_COLUMNS =
   'id, name, address, province, regency, latitude, longitude, categories, contact_person, contact_info, status, notes';
 
 const SURVEY_COLUMNS =
-  'id, supplier_id, survey_date, location, product_name, survey_type, categories, contact_person, contact_info, objectives, field_notes, status, created_at, supplier:suppliers(name), survey_team_members(name, role, position), survey_files(kind)';
+  'id, supplier_id, survey_date, location, product_name, survey_type, categories, contact_person, contact_info, objectives, field_notes, status, created_at, supplier:suppliers(name), survey_team_members(name, role, position), survey_files(id, kind)';
 
 interface SupplierRow {
   id: string;
@@ -39,7 +39,7 @@ interface SurveyRow {
   created_at: string;
   supplier: { name: string } | null;
   survey_team_members: { name: string; role: string | null; position: number }[] | null;
-  survey_files: { kind: FileKind }[] | null;
+  survey_files: { id: string; kind: FileKind }[] | null;
 }
 
 const GENERIC_ERROR = 'Data belum dapat dimuat. Silakan coba lagi.';
@@ -78,6 +78,7 @@ const mapSurvey = (row: SurveyRow): SurveyRecord => ({
     .sort((a, b) => a.position - b.position)
     .map<TeamMember>((m) => ({ name: m.name, role: m.role })),
   fileKinds: (row.survey_files ?? []).map((f) => f.kind),
+  recordingIds: (row.survey_files ?? []).filter((f) => f.kind === 'recording').map((f) => f.id),
 });
 
 export async function listSuppliers(): Promise<Supplier[]> {
