@@ -70,7 +70,7 @@ export default function Sidebar({ active, onNavigate }: SidebarProps) {
 
   return (
     <aside
-      className="sticky top-0 flex h-screen shrink-0 flex-col border-r border-[var(--line)] bg-[var(--surface)] transition-[width] duration-300 ease-out"
+      className="glass-chrome sticky top-3 ml-3 mb-3 mt-3 flex h-[calc(100vh-24px)] shrink-0 flex-col self-start overflow-hidden rounded-[28px] transition-[width] duration-300 ease-out"
       style={{ width: collapsed ? 72 : 252 }}
     >
       <div className="flex items-center gap-3 px-5" style={{ height: 72 }}>

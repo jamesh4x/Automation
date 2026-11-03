@@ -42,16 +42,17 @@ export default function App() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[var(--canvas)]">
+    <div className="isolate relative flex min-h-screen bg-[var(--canvas)]">
+      <div aria-hidden="true" className="ambient-canvas pointer-events-none fixed inset-0 -z-10" />
       <Sidebar active={page} onNavigate={setPage} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-[var(--line)] bg-[var(--canvas)]/85 px-6 backdrop-blur-xl sm:px-10">
+        <header className="glass-chrome sticky top-3 z-10 mx-3 mt-3 flex h-16 items-center justify-between rounded-2xl px-6 sm:mx-6 sm:px-8">
           <nav className="flex min-w-0 items-center gap-2 text-[13px]" aria-label="Breadcrumb">
             <span className="truncate text-[var(--muted)]">Supplier Survey Reporting</span>
             <span className="text-[var(--subtle)]">/</span>
             <span className="truncate font-medium text-[var(--ink)]">{pageTitles[page]}</span>
           </nav>
-          <div className="flex items-center gap-3 rounded-full border border-[var(--line)] bg-[var(--surface)] py-1 pl-1 pr-4">
+          <div className="flex items-center gap-3 rounded-full border border-white/80 bg-white/70 py-1 pl-1 pr-4">
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--graphite-800)] text-[11px] font-semibold text-white">
               AP
             </div>

@@ -288,7 +288,7 @@ export default function NewSurvey() {
         </Reveal>
 
         <Reveal delay={180}>
-          <div className="sticky bottom-6 flex items-center justify-between gap-4 rounded-2xl border border-[var(--line)] bg-white/90 px-5 py-4 shadow-[0_12px_40px_-18px_rgba(17,18,20,0.35)] backdrop-blur-xl">
+          <div className="glass-chrome sticky bottom-6 flex items-center justify-between gap-4 rounded-2xl px-5 py-4">
             <p className="text-[13px] text-[var(--muted)]">
               {totalFiles > 0 ? `${totalFiles} berkas siap diunggah` : 'Belum ada berkas dipilih'}
             </p>
