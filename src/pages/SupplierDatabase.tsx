@@ -156,8 +156,8 @@ export default function SupplierDatabase() {
                             type="button"
                             className="btn-secondary"
                             onClick={() => handleDelete(s)}
-                            disabled={!!last || deletingId === s.id}
-                            title={last ? 'Supplier yang punya survei tidak dapat dihapus' : 'Hapus supplier'}
+                            disabled={deletingId === s.id}
+                            title="Hapus supplier"
                             aria-label={`Hapus supplier ${s.name}`}
                           >
                             <Trash2 size={14} />

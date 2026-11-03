@@ -93,6 +93,12 @@
       0 12px 40px -18px rgba(17, 18, 20, 0.22);
   }
 
+  :root[data-theme='dark'] .glass-chrome {
+    background: linear-gradient(180deg, rgba(23, 24, 27, 0.92), rgba(23, 24, 27, 0.78));
+    border-color: rgba(58, 62, 70, 0.9);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 40px -18px rgba(0, 0, 0, 0.6);
+  }
+
   .ambient-canvas {
     background:
       radial-gradient(60% 50% at 8% 0%, rgba(47, 107, 255, 0.16), transparent 70%),

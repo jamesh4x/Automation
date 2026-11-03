@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import NewSurvey from './pages/NewSurvey';
@@ -8,6 +8,7 @@ import SupplierMap from './pages/SupplierMap';
 import ReportManagement from './pages/ReportManagement';
 import Settings from './pages/Settings';
 import type { PageId } from './types';
+import { applyLanguage, applyTheme, getLanguage, getTheme } from './lib/preferences';
 
 const pageTitles: Record<PageId, string> = {
   dashboard: 'Dashboard',
@@ -21,6 +22,11 @@ const pageTitles: Record<PageId, string> = {
 
 export default function App() {
   const [page, setPage] = useState<PageId>('dashboard');
+
+  useEffect(() => {
+    applyTheme(getTheme());
+    applyLanguage(getLanguage());
+  }, []);
 
   const renderPage = () => {
     switch (page) {

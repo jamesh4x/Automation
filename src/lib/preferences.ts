@@ -1,5 +1,5 @@
 export type ThemeMode = 'light' | 'dark';
-export type AppLanguage = 'id' | 'zh';
+export type AppLanguage = 'id' | 'en' | 'zh';
 
 const THEME_KEY = 'ssrs-theme';
 const LANGUAGE_KEY = 'ssrs-language';
@@ -9,7 +9,8 @@ export function getTheme(): ThemeMode {
 }
 
 export function getLanguage(): AppLanguage {
-  return localStorage.getItem(LANGUAGE_KEY) === 'zh' ? 'zh' : 'id';
+  const saved = localStorage.getItem(LANGUAGE_KEY);
+  return saved === 'en' || saved === 'zh' ? saved : 'id';
 }
 
 export function applyTheme(theme: ThemeMode) {
@@ -17,7 +18,7 @@ export function applyTheme(theme: ThemeMode) {
 }
 
 export function applyLanguage(language: AppLanguage) {
-  document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'id';
+  document.documentElement.lang = language === 'zh' ? 'zh-CN' : language === 'en' ? 'en' : 'id';
 }
 
 export function saveTheme(theme: ThemeMode) {

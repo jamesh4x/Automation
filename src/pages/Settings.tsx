@@ -4,6 +4,7 @@ import { User, Bell, Globe, Shield, Sparkles, Check, CircleAlert, Loader2 } from
 import PageHeader from '../components/PageHeader';
 import Reveal from '../components/Reveal';
 import { testGroqConnection, type GroqStatus } from '../lib/groqService';
+import { getLanguage, getTheme, saveLanguage, saveTheme, type AppLanguage, type ThemeMode } from '../lib/preferences';
 
 type GroqCheck =
   | { state: 'idle' }
@@ -16,6 +17,8 @@ export default function Settings() {
   const [autoReport, setAutoReport] = useState(false);
   const [bilingualDefault, setBilingualDefault] = useState(true);
   const [groq, setGroq] = useState<GroqCheck>({ state: 'idle' });
+  const [theme, setTheme] = useState<ThemeMode>(getTheme);
+  const [language, setLanguage] = useState<AppLanguage>(getLanguage);
 
   const handleTestGroq = async () => {
     setGroq({ state: 'loading' });
@@ -77,6 +80,24 @@ export default function Settings() {
         </Reveal>
 
         <Reveal delay={140}>
+          <Section title="Tampilan & Bahasa" icon={Globe}>
+            <Field label="Tema aplikasi">
+              <select className="input-field" value={theme} onChange={(event) => { const value = event.target.value as ThemeMode; setTheme(value); saveTheme(value); }}>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </Field>
+            <Field label="Bahasa aplikasi">
+              <select className="input-field" value={language} onChange={(event) => { const value = event.target.value as AppLanguage; setLanguage(value); saveLanguage(value); }}>
+                <option value="id">Bahasa Indonesia</option>
+                <option value="en">English</option>
+                <option value="zh">中文（简体）</option>
+              </select>
+            </Field>
+          </Section>
+        </Reveal>
+
+        <Reveal delay={200}>
           <Section title="Preferensi Laporan" icon={Globe}>
             <Toggle
               label="Laporan bilingual sebagai default"
@@ -100,7 +121,7 @@ export default function Settings() {
           </Section>
         </Reveal>
 
-        <Reveal delay={200}>
+        <Reveal delay={260}>
           <Section title="Notifikasi" icon={Bell}>
             <Toggle
               label="Notifikasi email"
@@ -111,7 +132,7 @@ export default function Settings() {
           </Section>
         </Reveal>
 
-        <Reveal delay={260}>
+        <Reveal delay={320}>
           <Section title="Keamanan" icon={Shield}>
             <Field label="Frekuensi Ubah Password">
               <select className="input-field">
