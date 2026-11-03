@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import Reveal from '../components/Reveal';
 import { testGroqConnection, type GroqStatus } from '../lib/groqService';
 import { getLanguage, getTheme, saveLanguage, saveTheme, type AppLanguage, type ThemeMode } from '../lib/preferences';
+import { notifyLanguageChanged } from '../lib/i18n';
 
 type GroqCheck =
   | { state: 'idle' }
@@ -88,7 +89,7 @@ export default function Settings() {
               </select>
             </Field>
             <Field label="Bahasa aplikasi">
-              <select className="input-field" value={language} onChange={(event) => { const value = event.target.value as AppLanguage; setLanguage(value); saveLanguage(value); }}>
+              <select className="input-field" value={language} onChange={(event) => { const value = event.target.value as AppLanguage; setLanguage(value); saveLanguage(value); notifyLanguageChanged(); }}>
                 <option value="id">Bahasa Indonesia</option>
                 <option value="en">English</option>
                 <option value="zh">中文（简体）</option>

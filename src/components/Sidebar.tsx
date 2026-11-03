@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { PageId } from '../types';
+import { translate, useLanguage } from '../lib/i18n';
 
 interface SidebarProps {
   active: PageId;
@@ -57,6 +58,7 @@ const navSections: { title: string; items: NavItem[] }[] = [
 const COLLAPSE_BREAKPOINT = 1024;
 
 export default function Sidebar({ active, onNavigate }: SidebarProps) {
+  const language = useLanguage();
   const [collapsed, setCollapsed] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth < COLLAPSE_BREAKPOINT : false
   );
@@ -93,7 +95,7 @@ export default function Sidebar({ active, onNavigate }: SidebarProps) {
           <div key={section.title} className="mb-4">
             {!collapsed && (
               <p className="px-3 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--subtle)]">
-                {section.title}
+                {translate(section.title, language)}
               </p>
             )}
             {collapsed && <div className="mx-auto my-2 h-px w-6 bg-[var(--line)]" />}
@@ -121,7 +123,7 @@ export default function Sidebar({ active, onNavigate }: SidebarProps) {
                     <span className="absolute left-0 top-2.5 h-5 w-[3px] rounded-r-full bg-[var(--accent)]" />
                   )}
                   <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} className="shrink-0" />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
+                  {!collapsed && <span className="truncate">{translate(item.label, language)}</span>}
                 </button>
               );
             })}

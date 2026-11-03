@@ -9,6 +9,7 @@ import ReportManagement from './pages/ReportManagement';
 import Settings from './pages/Settings';
 import type { PageId } from './types';
 import { applyLanguage, applyTheme, getLanguage, getTheme } from './lib/preferences';
+import { translate, useLanguage } from './lib/i18n';
 
 const pageTitles: Record<PageId, string> = {
   dashboard: 'Dashboard',
@@ -22,6 +23,7 @@ const pageTitles: Record<PageId, string> = {
 
 export default function App() {
   const [page, setPage] = useState<PageId>('dashboard');
+  const language = useLanguage();
 
   useEffect(() => {
     applyTheme(getTheme());
@@ -54,9 +56,9 @@ export default function App() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="glass-chrome sticky top-3 z-10 mx-3 mt-3 flex h-16 items-center justify-between rounded-2xl px-6 sm:mx-6 sm:px-8">
           <nav className="flex min-w-0 items-center gap-2 text-[13px]" aria-label="Breadcrumb">
-            <span className="truncate text-[var(--muted)]">Supplier Survey Reporting</span>
+            <span className="truncate text-[var(--muted)]">{translate('Supplier Survey Reporting', language)}</span>
             <span className="text-[var(--subtle)]">/</span>
-            <span className="truncate font-medium text-[var(--ink)]">{pageTitles[page]}</span>
+            <span className="truncate font-medium text-[var(--ink)]">{translate(pageTitles[page], language)}</span>
           </nav>
           <div className="flex items-center gap-3 rounded-full border border-white/80 bg-white/70 py-1 pl-1 pr-4">
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--graphite-800)] text-[11px] font-semibold text-white">
