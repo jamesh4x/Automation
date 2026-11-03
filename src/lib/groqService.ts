@@ -108,6 +108,11 @@ export interface ReportRecord {
   createdAt: string;
 }
 
+export async function fetchLatestReports(surveyIds: string[]): Promise<Record<string, ReportRecord>> {
+  const entries = await Promise.all(surveyIds.map(async (surveyId) => [surveyId, await fetchLatestReport(surveyId)] as const));
+  return Object.fromEntries(entries.filter((entry): entry is readonly [string, ReportRecord] => entry[1] !== null));
+}
+
 export async function fetchLatestReport(surveyId: string): Promise<ReportRecord | null> {
   const { data, error } = await supabase
     .from('survey_ai_runs')
