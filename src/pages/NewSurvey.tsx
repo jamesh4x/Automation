@@ -45,6 +45,7 @@ export default function NewSurvey() {
   const [supplierName, setSupplierName] = useState('');
   const [surveyDate, setSurveyDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [location, setLocation] = useState('');
+  const [division, setDivision] = useState('');
   const [productName, setProductName] = useState('');
   const [surveyType, setSurveyType] = useState('');
   const [categories, setCategories] = useState<string[]>([]);
@@ -86,6 +87,7 @@ export default function NewSurvey() {
     setSupplierName('');
     setSurveyDate(new Date().toISOString().slice(0, 10));
     setLocation('');
+    setDivision('');
     setProductName('');
     setSurveyType('');
     setCategories([]);
@@ -109,6 +111,7 @@ export default function NewSurvey() {
       supplierName,
       surveyDate,
       location,
+      division,
       productName,
       surveyType,
       categories,
@@ -170,6 +173,9 @@ export default function NewSurvey() {
               </Field>
               <Field label="Lokasi Perusahaan" icon={MapPin}>
                 <input className="input-field" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Contoh: Cikarang, Jawa Barat" />
+              </Field>
+              <Field label="Divisi" icon={Building2}>
+                <input className="input-field" value={division} onChange={(e) => setDivision(e.target.value)} placeholder="Contoh: Purchasing Produksi" />
               </Field>
               <Field label="Nama Produk / Layanan">
                 <input className="input-field" value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="Contoh: Kemasan PET 500 ml" />

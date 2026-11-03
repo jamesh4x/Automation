@@ -6,7 +6,7 @@ const SUPPLIER_COLUMNS =
   'id, name, address, province, regency, latitude, longitude, categories, contact_person, contact_info, status, notes';
 
 const SURVEY_COLUMNS =
-  'id, supplier_id, survey_date, location, product_name, survey_type, categories, contact_person, contact_info, objectives, field_notes, status, created_at, supplier:suppliers(name), survey_team_members(name, role, position), survey_files(id, kind)';
+  'id, supplier_id, survey_date, location, division, product_name, survey_type, categories, contact_person, contact_info, objectives, field_notes, status, created_at, supplier:suppliers(name), survey_team_members(name, role, position), survey_files(id, kind)';
 
 interface SupplierRow {
   id: string;
@@ -28,6 +28,7 @@ interface SurveyRow {
   supplier_id: string;
   survey_date: string;
   location: string | null;
+  division: string | null;
   product_name: string | null;
   survey_type: string | null;
   categories: string[] | null;
@@ -65,6 +66,7 @@ const mapSurvey = (row: SurveyRow): SurveyRecord => ({
   supplierName: row.supplier?.name ?? 'Supplier tidak ditemukan',
   surveyDate: row.survey_date,
   location: row.location,
+  division: row.division,
   productName: row.product_name,
   surveyType: row.survey_type,
   categories: row.categories ?? [],
@@ -107,6 +109,7 @@ export interface NewSurveyInput {
   supplierName: string;
   surveyDate: string;
   location: string;
+  division: string;
   productName: string;
   surveyType: string;
   categories: string[];
@@ -173,6 +176,7 @@ export async function saveSurvey(input: NewSurveyInput): Promise<void> {
     supplier_id: supplierId,
     survey_date: input.surveyDate,
     location: emptyToNull(input.location),
+    division: emptyToNull(input.division),
     product_name: emptyToNull(input.productName),
     survey_type: emptyToNull(input.surveyType),
     categories: input.categories,

@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Search, Filter, Mic, Camera, FileText, MapPin, Calendar, Users } from 'lucide-react';
+import { Search, Filter, Mic, Camera, FileText, MapPin, Calendar, Users, Building2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import Reveal from '../components/Reveal';
 import { listSurveys } from '../lib/surveyRepository';
 import { useLoader } from '../hooks/useLoader';
 import TranscriptPanel from '../components/TranscriptPanel';
+import { useAiPipeline } from '../hooks/useAiPipeline';
 import type { SurveyStatus } from '../types';
 
 const statusConfig: Record<SurveyStatus, { label: string; color: string; bg: string }> = {
@@ -25,6 +26,7 @@ export default function SurveyHistory() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterId>('all');
   const [openTranscriptId, setOpenTranscriptId] = useState<string | null>(null);
+  const { states: pipeline, retry: retryPipeline } = useAiPipeline(surveys);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -119,6 +121,7 @@ export default function SurveyHistory() {
                       <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[12px]" style={{ color: 'var(--muted)' }}>
                         <span className="flex items-center gap-1.5"><Calendar size={13} /> {formatDate(s.surveyDate)}</span>
                         <span className="flex items-center gap-1.5"><MapPin size={13} /> {s.location ?? 'Lokasi belum dicatat'}</span>
+                        <span className="flex items-center gap-1.5"><Building2 size={13} /> {s.division ?? 'Divisi belum dicatat'}</span>
                         <span className="flex items-center gap-1.5"><Users size={13} /> {s.team.length} anggota</span>
                       </div>
                       {s.objectives.length > 0 && (
@@ -140,6 +143,25 @@ export default function SurveyHistory() {
                       )}
                     </div>
                   </div>
+                  {s.recordingIds.length > 0 && (
+                    <div className="mt-4 flex flex-wrap items-center gap-3 text-[13px]">
+                      {pipeline[s.id]?.error ? (
+                        <>
+                          <span role="alert" className="text-[var(--danger)]">{pipeline[s.id].error}</span>
+                          <button className="btn-secondary" onClick={() => retryPipeline(s.id)}>Coba lagi</button>
+                        </>
+                      ) : pipeline[s.id]?.done ? (
+                        <span className="text-[var(--success)]">Transkrip dan laporan AI selesai</span>
+                      ) : (
+                        <span className="text-[var(--muted)]">
+                          {pipeline[s.id]?.running === 'transcribe' && 'Mentranskripsi rekaman…'}
+                          {pipeline[s.id]?.running === 'extract' && 'Mengekstrak data supplier…'}
+                          {pipeline[s.id]?.running === 'report' && 'Menyusun laporan survei…'}
+                          {!pipeline[s.id]?.running && 'Menunggu pemrosesan AI…'}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   {openTranscriptId === s.id && (
                     <div className="mt-5 border-t border-[var(--line)] pt-5">
                       <TranscriptPanel surveyId={s.id} recordingIds={s.recordingIds} />

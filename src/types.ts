@@ -39,6 +39,7 @@ export interface SurveyRecord {
   supplierName: string;
   surveyDate: string;
   location: string | null;
+  division: string | null;
   productName: string | null;
   surveyType: string | null;
   categories: string[];

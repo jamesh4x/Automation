@@ -76,3 +76,56 @@ export async function fetchLatestTranscript(surveyId: string): Promise<Transcrip
   if (typeof output?.text !== 'string') throw new Error('Format transkrip tidak sesuai.');
   return { text: output.text, reviewed: output.reviewed === true, createdAt: data.created_at };
 }
+
+export async function extractSurvey(surveyId: string): Promise<void> {
+  await invokeGroqAi({ action: 'extract', surveyId });
+}
+
+export async function generateReport(surveyId: string): Promise<void> {
+  await invokeGroqAi({ action: 'report', surveyId });
+}
+
+export async function fetchAiActions(surveyIds: string[]): Promise<Record<string, string[]>> {
+  if (surveyIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('survey_ai_runs')
+    .select('survey_id, action')
+    .in('survey_id', surveyIds);
+  if (error) {
+    console.error(error);
+    throw new Error('Status pemrosesan AI belum dapat dimuat.');
+  }
+  const actions: Record<string, string[]> = {};
+  for (const row of data ?? []) {
+    (actions[row.survey_id] ??= []).push(row.action);
+  }
+  return actions;
+}
+
+export interface ReportRecord {
+  idText: string;
+  zhText: string;
+  createdAt: string;
+}
+
+export async function fetchLatestReport(surveyId: string): Promise<ReportRecord | null> {
+  const { data, error } = await supabase
+    .from('survey_ai_runs')
+    .select('output, created_at')
+    .eq('survey_id', surveyId)
+    .eq('action', 'report')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error(error);
+    throw new Error('Laporan belum dapat dimuat. Silakan coba lagi.');
+  }
+  if (!data) return null;
+
+  const output = data.output as { id_text?: unknown; zh_text?: unknown };
+  if (typeof output?.id_text !== 'string' || typeof output?.zh_text !== 'string') {
+    throw new Error('Format laporan tidak sesuai.');
+  }
+  return { idText: output.id_text, zhText: output.zh_text, createdAt: data.created_at };
+}

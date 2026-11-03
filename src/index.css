@@ -41,6 +41,24 @@
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
+  :root[data-theme='dark'] {
+    --canvas: #0b0c0e;
+    --surface: #17181b;
+    --surface-muted: #1d1f23;
+    --ink: #f2f3f5;
+    --ink-soft: #d4d6db;
+    --muted: #a3a7b0;
+    --subtle: #7d828c;
+    --line: #2a2d33;
+    --line-strong: #3a3e46;
+    --graphite-100: #2a2d33;
+    --graphite-200: #3a3e46;
+    --success-soft: rgba(31, 157, 85, 0.18);
+    --danger-soft: rgba(197, 48, 48, 0.18);
+    --warning-soft: rgba(183, 121, 31, 0.18);
+    --accent-soft: rgba(47, 107, 255, 0.18);
+  }
+
   * {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
