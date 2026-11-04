@@ -1,65 +1,68 @@
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
+
 const MB = 1024 * 1024;
 const MAX_CHUNK_BYTES = 24 * MB;
+const SEGMENT_SECONDS = 900;
 
-const writeString = (view: DataView, offset: number, value: string) => {
-  for (let i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i));
-};
+let ffmpegPromise: Promise<FFmpeg> | null = null;
 
-function encodeWav(audio: AudioBuffer, startFrame: number, frameCount: number): ArrayBuffer {
-  const channelCount = audio.numberOfChannels;
-  const bytesPerSample = 2;
-  const blockAlign = channelCount * bytesPerSample;
-  const buffer = new ArrayBuffer(44 + frameCount * blockAlign);
-  const view = new DataView(buffer);
-  writeString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + frameCount * blockAlign, true);
-  writeString(view, 8, 'WAVE');
-  writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, channelCount, true);
-  view.setUint32(24, audio.sampleRate, true);
-  view.setUint32(28, audio.sampleRate * blockAlign, true);
-  view.setUint16(32, blockAlign, true);
-  view.setUint16(34, 16, true);
-  writeString(view, 36, 'data');
-  view.setUint32(40, frameCount * blockAlign, true);
-
-  let offset = 44;
-  for (let frame = startFrame; frame < startFrame + frameCount; frame++) {
-    for (let channel = 0; channel < channelCount; channel++) {
-      const sample = Math.max(-1, Math.min(1, audio.getChannelData(channel)[frame]));
-      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
-      offset += 2;
-    }
+async function getFfmpeg(): Promise<FFmpeg> {
+  if (!ffmpegPromise) {
+    ffmpegPromise = (async () => {
+      const ffmpeg = new FFmpeg();
+      const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      });
+      return ffmpeg;
+    })();
   }
-  return buffer;
+  return ffmpegPromise;
 }
 
 export async function splitAudioForUpload(file: File): Promise<File[]> {
   if (file.size <= MAX_CHUNK_BYTES) return [file];
-  if (!file.type.startsWith('audio/')) {
-    throw new Error(`${file.name} lebih besar dari 24 MB dan bukan file audio yang dapat dipecah otomatis. Gunakan audio MP3/WAV/M4A atau kompres file ini terlebih dahulu.`);
-  }
-  const AudioContextConstructor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioContextConstructor) throw new Error('Browser ini tidak mendukung pemecahan audio otomatis.');
 
-  const context = new AudioContextConstructor();
+  const ffmpeg = await getFfmpeg();
+  const inputName = `input-${crypto.randomUUID()}.${file.name.split('.').pop()?.toLowerCase() || 'bin'}`;
+  const outputPattern = `chunk-${crypto.randomUUID()}-%03d.ogg`;
+  await ffmpeg.writeFile(inputName, await fetchFile(file));
+
   try {
-    const audio = await context.decodeAudioData(await file.arrayBuffer());
-    const bytesPerFrame = audio.numberOfChannels * 2;
-    const framesPerChunk = Math.max(1, Math.floor((MAX_CHUNK_BYTES - 44) / bytesPerFrame));
-    const chunks: File[] = [];
-    for (let start = 0, part = 1; start < audio.length; start += framesPerChunk, part++) {
-      const frameCount = Math.min(framesPerChunk, audio.length - start);
-      const wav = encodeWav(audio, start, frameCount);
-      const padded = String(part).padStart(3, '0');
-      chunks.push(new File([wav], `${file.name.replace(/\.[^.]+$/, '')}.part-${padded}.wav`, { type: 'audio/wav' }));
+    await ffmpeg.exec([
+      '-i', inputName,
+      '-map', '0:a:0',
+      '-vn',
+      '-ac', '1',
+      '-c:a', 'libopus',
+      '-b:a', '128k',
+      '-f', 'segment',
+      '-segment_time', String(SEGMENT_SECONDS),
+      '-reset_timestamps', '1',
+      outputPattern,
+    ]);
+
+    const files: File[] = [];
+    for (let part = 0; ; part++) {
+      const outputName = outputPattern.replace('%03d', String(part).padStart(3, '0'));
+      let data: Uint8Array | string;
+      try {
+        data = await ffmpeg.readFile(outputName);
+      } catch {
+        break;
+      }
+      if (typeof data === 'string') break;
+      const chunk = new File([data], `${file.name.replace(/\.[^.]+$/, '')}.part-${String(part + 1).padStart(3, '0')}.ogg`, { type: 'audio/ogg' });
+      if (chunk.size > 25 * MB) throw new Error(`${file.name} menghasilkan potongan di atas batas Groq.`);
+      files.push(chunk);
+      await ffmpeg.deleteFile(outputName);
     }
-    return chunks;
-  } catch {
-    throw new Error(`${file.name} tidak dapat dipecah otomatis. Gunakan file MP3, WAV, atau M4A yang dapat diputar browser.`);
+
+    if (files.length === 0) throw new Error('FFmpeg tidak menghasilkan potongan audio yang dapat diproses.');
+    return files;
   } finally {
-    await context.close();
+    await ffmpeg.deleteFile(inputName);
   }
 }
