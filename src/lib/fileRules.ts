@@ -11,7 +11,7 @@ const MB = 1024 * 1024;
 export const FILE_RULES: Record<FileKind, KindRule> = {
   recording: {
     label: 'Rekaman audio/video',
-    maxBytes: 500 * MB,
+    maxBytes: 25 * MB,
     types: {
       mp3: 'audio/mpeg',
       wav: 'audio/wav',
