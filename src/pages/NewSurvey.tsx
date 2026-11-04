@@ -6,7 +6,7 @@ import Reveal from '../components/Reveal';
 import TagInput from '../components/TagInput';
 import FileUploadZone from '../components/FileUploadZone';
 import { listSuppliers, saveSurvey, type NewSurveyInput } from '../lib/surveyRepository';
-import { extractSurvey, generateReport, transcribeRecording } from '../lib/groqService';
+import { runAiStage } from '../lib/groqService';
 import type { FileKind } from '../lib/fileRules';
 import type { TeamMember } from '../types';
 
@@ -128,23 +128,50 @@ export default function NewSurvey() {
     setSubmitting(true);
     try {
       const savedSurvey = await saveSurvey(input);
-      if (savedSurvey.recordingIds.length > 0) {
-        setAiProgress('Mentranskripsi rekaman…');
-        await transcribeRecording(savedSurvey.surveyId, savedSurvey.recordingIds[0]);
-        setAiProgress('Mengekstrak data supplier…');
-        await extractSurvey(savedSurvey.surveyId);
-        setAiProgress('Menyusun laporan survei…');
-        await generateReport(savedSurvey.surveyId);
-      }
       resetForm();
-      setAiProgress(null);
       setSaved(true);
+      setSubmitting(false);
+      if (savedSurvey.recordingIds.length > 0) {
+        startAiPipeline(savedSurvey.surveyId);
+      }
     } catch (err) {
-      setAiProgress(null);
       setError(err instanceof Error ? err.message : 'Survei belum dapat disimpan. Silakan coba lagi.');
-    } finally {
       setSubmitting(false);
     }
+  };
+
+  const startAiPipeline = async (surveyId: string) => {
+    const stages = ['transcribe', 'reference', 'documents', 'extract', 'report', 'docx'] as const;
+    for (const stage of stages) {
+      setAiProgress(stageLabel(stage));
+      try {
+        if (stage === 'docx') {
+          const { buildAndUploadDocx, fetchLatestReport } = await import('../lib/groqService');
+          const report = await fetchLatestReport(surveyId);
+          if (!report) throw new Error('Laporan belum tersedia.');
+          await buildAndUploadDocx(surveyId, supplierName, surveyDate, report);
+        } else {
+          await runAiStage(surveyId, stage);
+        }
+      } catch (err) {
+        setAiProgress(null);
+        setError(`Survei tersimpan, tetapi pemrosesan AI berhenti di tahap "${stageLabel(stage)}". Buka Survey History untuk melihat status dan mencoba ulang.`);
+        return;
+      }
+    }
+    setAiProgress(null);
+  };
+
+  const stageLabel = (stage: string): string => {
+    const labels: Record<string, string> = {
+      transcribe: 'Mentranskripsi rekaman…',
+      reference: 'Membaca laporan referensi…',
+      documents: 'Memproses dokumen pendukung…',
+      extract: 'Mengekstrak data supplier…',
+      report: 'Menyusun laporan survei…',
+      docx: 'Membuat dokumen DOCX…',
+    };
+    return labels[stage] ?? 'Memproses…';
   };
 
   const totalFiles = files.recording.length + files.photo.length + files.document.length + files.template.length;
@@ -166,7 +193,10 @@ export default function NewSurvey() {
           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--success)]">
             <Check size={14} className="text-white" />
           </div>
-          <p className="text-[14px] font-medium text-[var(--success)]">Survei dan bahan pendukung berhasil disimpan.</p>
+          <div>
+            <p className="text-[14px] font-medium text-[var(--success)]">Survei dan bahan pendukung berhasil disimpan.</p>
+            <p className="text-[12px] text-[var(--success)] mt-0.5">Pemrosesan AI berjalan otomatis di latar belakang. Buka Survey History untuk memantau progres.</p>
+          </div>
         </div>
       )}
 

@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SurveyRecord } from '../types';
-import { extractSurvey, fetchAiActions, generateReport, transcribeRecording } from '../lib/groqService';
+import { buildAndUploadDocx, fetchLatestReport, fetchPipelineStagesBatch, runAiStage, type PipelineStage, type PipelineStageStatus } from '../lib/groqService';
 
-export type PipelineStep = 'transcribe' | 'extract' | 'report';
+const ALL_STAGES: PipelineStage[] = ['transcribe', 'reference', 'documents', 'extract', 'report', 'docx'];
 
 export interface SurveyPipelineState {
-  running: PipelineStep | null;
+  stages: PipelineStageStatus[];
+  running: PipelineStage | null;
   done: boolean;
   error: string | null;
 }
 
-const idle: SurveyPipelineState = { running: null, done: false, error: null };
+const idle: SurveyPipelineState = { stages: [], running: null, done: false, error: null };
 
 const messageOf = (err: unknown) => (err instanceof Error ? err.message : 'Pemrosesan AI gagal. Silakan coba lagi.');
 
@@ -24,26 +25,40 @@ export function useAiPipeline(surveys: SurveyRecord[] | null) {
     setStates((prev) => ({ ...prev, [surveyId]: { ...(prev[surveyId] ?? idle), ...next } }));
 
   const runSurvey = async (survey: SurveyRecord) => {
-    let actions: string[];
+    let stageMap: Record<string, PipelineStageStatus[]>;
     try {
-      actions = (await fetchAiActions([survey.id]))[survey.id] ?? [];
+      stageMap = await fetchPipelineStagesBatch([survey.id]);
     } catch (err) {
       patch(survey.id, { error: messageOf(err) });
       return;
     }
+    const stages = stageMap[survey.id] ?? [];
+    patch(survey.id, { stages });
 
-    const steps: [PipelineStep, () => Promise<void>][] = [
-      ['transcribe', () => transcribeRecording(survey.id, survey.recordingIds[0])],
-      ['extract', () => extractSurvey(survey.id)],
-      ['report', () => generateReport(survey.id)],
-    ];
+    const hasSources = survey.recordingIds.length > 0;
+    if (!hasSources) {
+      patch(survey.id, { running: null, done: true, error: null });
+      return;
+    }
 
-    for (const [step, run] of steps) {
-      if (actions.includes(step)) continue;
-      patch(survey.id, { running: step, error: null });
+    const completed = new Set(stages.filter((s) => s.status === 'completed').map((s) => s.stage));
+    if (ALL_STAGES.every((s) => completed.has(s))) {
+      patch(survey.id, { running: null, done: true, error: null });
+      return;
+    }
+
+    for (const stage of ALL_STAGES) {
+      if (completed.has(stage)) continue;
+      patch(survey.id, { running: stage, error: null });
       try {
-        await run();
-        actions.push(step);
+        if (stage === 'docx') {
+          const report = await fetchLatestReport(survey.id);
+          if (!report) throw new Error('Laporan belum tersedia untuk dibuatkan DOCX.');
+          await buildAndUploadDocx(survey.id, survey.supplierName, survey.surveyDate, report);
+        } else {
+          await runAiStage(survey.id, stage);
+        }
+        completed.add(stage);
       } catch (err) {
         patch(survey.id, { running: null, error: messageOf(err) });
         return;
@@ -57,7 +72,7 @@ export function useAiPipeline(surveys: SurveyRecord[] | null) {
     runningRef.current = true;
     try {
       for (;;) {
-        const next = surveysRef.current.find((s) => s.recordingIds.length > 0 && !attemptedRef.current.has(s.id));
+        const next = surveysRef.current.find((s) => !attemptedRef.current.has(s.id));
         if (!next) break;
         attemptedRef.current.add(next.id);
         await runSurvey(next);

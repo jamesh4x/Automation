@@ -1,5 +1,5 @@
 import { useRef, useState, type DragEvent } from 'react';
-import { FileText, Image as ImageIcon, Mic, Upload, X } from 'lucide-react';
+import { Check, FileText, Image as ImageIcon, Mic, Upload, X } from 'lucide-react';
 import { acceptAttribute, checkFile, formatBytes, FILE_RULES, type FileKind } from '@/lib/fileRules';
 
 interface FileUploadZoneProps {
@@ -99,6 +99,9 @@ export default function FileUploadZone({ kind, files, onAdd, onRemove, hint }: F
                 <p className="truncate text-[13px] font-medium">{file.name}</p>
                 <p className="text-[12px] text-[var(--muted)]">{formatBytes(file.size)}</p>
               </div>
+              <span className="flex items-center gap-1 text-[11px] font-medium text-[#1a7a32]" title="Berkas siap diunggah">
+                <Check size={14} strokeWidth={2.5} /> Siap
+              </span>
               <button
                 type="button"
                 onClick={() => onRemove(index)}

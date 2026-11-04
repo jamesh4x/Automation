@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Calendar, CheckCircle2, Download, FileText, Languages, LoaderCircle, X } from 'lucide-react';
-import { Document, HeadingLevel, Packer, Paragraph } from 'docx';
 import PageHeader from '../components/PageHeader';
 import Reveal from '../components/Reveal';
-import { fetchLatestReports, type ReportRecord } from '../lib/groqService';
+import { downloadDocxFile, fetchLatestReports, type ReportRecord } from '../lib/groqService';
 import { listSurveys } from '../lib/surveyRepository';
 import { useLoader } from '../hooks/useLoader';
 import type { SurveyRecord } from '../types';
@@ -18,6 +17,7 @@ export default function ReportManagement() {
   const reportsLoader = useLoader(() => fetchLatestReports(surveys.map((survey) => survey.id)));
   const [selected, setSelected] = useState<SelectedReport | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (surveys.length > 0) reportsLoader.reload();
@@ -31,25 +31,9 @@ export default function ReportManagement() {
   const downloadDocx = async (item: SelectedReport) => {
     setDownloading(true);
     try {
-      const document = new Document({
-        sections: [{
-          children: [
-            new Paragraph({ text: `Supplier Survey Report — ${item.survey.supplierName}`, heading: HeadingLevel.TITLE }),
-            new Paragraph({ text: `Tanggal survei: ${formatDate(item.survey.surveyDate)}` }),
-            new Paragraph({ text: 'Laporan Bahasa Indonesia', heading: HeadingLevel.HEADING_1 }),
-            ...item.report.idText.split('\n').map((text) => new Paragraph(text)),
-            new Paragraph({ text: 'Supplier Survey Report — 简体中文', heading: HeadingLevel.HEADING_1 }),
-            ...item.report.zhText.split('\n').map((text) => new Paragraph(text)),
-          ],
-        }],
-      });
-      const blob = await Packer.toBlob(document);
-      const url = URL.createObjectURL(blob);
-      const link = window.document.createElement('a');
-      link.href = url;
-      link.download = `supplier-survey-${item.survey.supplierName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.docx`;
-      link.click();
-      URL.revokeObjectURL(url);
+      await downloadDocxFile(item.survey.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal mengunduh dokumen.');
     } finally {
       setDownloading(false);
     }
