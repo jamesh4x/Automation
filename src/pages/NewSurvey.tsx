@@ -6,7 +6,7 @@ import Reveal from '../components/Reveal';
 import TagInput from '../components/TagInput';
 import FileUploadZone from '../components/FileUploadZone';
 import { listSuppliers, saveSurvey, type NewSurveyInput } from '../lib/surveyRepository';
-import { runAiStage } from '../lib/groqService';
+import { buildAndUploadDocx, fetchLatestReport, runAiStage } from '../lib/groqService';
 import type { FileKind } from '../lib/fileRules';
 import type { TeamMember } from '../types';
 
@@ -146,7 +146,6 @@ export default function NewSurvey() {
       setAiProgress(stageLabel(stage));
       try {
         if (stage === 'docx') {
-          const { buildAndUploadDocx, fetchLatestReport } = await import('../lib/groqService');
           const report = await fetchLatestReport(surveyId);
           if (!report) throw new Error('Laporan belum tersedia.');
           await buildAndUploadDocx(surveyId, supplierName, surveyDate, report);

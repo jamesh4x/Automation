@@ -17,7 +17,7 @@ export default function ReportManagement() {
   const reportsLoader = useLoader(() => fetchLatestReports(surveys.map((survey) => survey.id)));
   const [selected, setSelected] = useState<SelectedReport | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (surveys.length > 0) reportsLoader.reload();
@@ -33,14 +33,14 @@ export default function ReportManagement() {
     try {
       await downloadDocxFile(item.survey.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gagal mengunduh dokumen.');
+      setDownloadError(err instanceof Error ? err.message : 'Gagal mengunduh dokumen.');
     } finally {
       setDownloading(false);
     }
   };
 
   const loading = surveysLoader.loading || (surveys.length > 0 && reportsLoader.loading);
-  const error = surveysLoader.error ?? reportsLoader.error;
+  const error = surveysLoader.error ?? reportsLoader.error ?? downloadError;
 
   return (
     <div className="pb-12">
