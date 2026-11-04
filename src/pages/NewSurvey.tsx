@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Building2, Calendar, Check, CircleAlert, Mic, Camera, FileText, FileStack, MapPin, Phone, Plus, Target, Users, X } from 'lucide-react';
+import { Building2, Calendar, Check, CircleAlert, LoaderCircle, Mic, Camera, FileText, FileStack, MapPin, Phone, Plus, Target, Users, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import Reveal from '../components/Reveal';
@@ -61,6 +61,7 @@ export default function NewSurvey() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [aiProgress, setAiProgress] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -132,7 +133,8 @@ export default function NewSurvey() {
       setSaved(true);
       setSubmitting(false);
       if (savedSurvey.recordingIds.length > 0) {
-        startAiPipeline(savedSurvey.surveyId);
+        setProcessing(true);
+        void startAiPipeline(savedSurvey.surveyId);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Survei belum dapat disimpan. Silakan coba lagi.');
@@ -154,11 +156,13 @@ export default function NewSurvey() {
         }
       } catch (err) {
         setAiProgress(null);
+        setProcessing(false);
         setError(`Survei tersimpan, tetapi pemrosesan AI berhenti di tahap "${stageLabel(stage)}". Buka Survey History untuk melihat status dan mencoba ulang.`);
         return;
       }
     }
     setAiProgress(null);
+    setProcessing(false);
   };
 
   const stageLabel = (stage: string): string => {
@@ -176,7 +180,18 @@ export default function NewSurvey() {
   const totalFiles = files.recording.length + files.photo.length + files.document.length + files.template.length;
 
   return (
-    <div className="max-w-4xl pb-16">
+    <>
+      {(submitting || processing) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm">
+          <div className="flex w-full max-w-sm flex-col items-center rounded-3xl bg-[var(--canvas)] p-8 text-center shadow-2xl">
+            <LoaderCircle size={52} className="mb-5 animate-spin text-[var(--accent)]" strokeWidth={1.5} />
+            <h2 className="text-lg font-semibold text-[var(--ink)]">Survei sedang diproses</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Jangan tutup halaman ini sampai data dan rekaman berhasil dikirim.</p>
+            <p className="mt-4 text-sm font-medium text-[var(--accent)]">{aiProgress ?? 'Menyimpan data survei…'}</p>
+          </div>
+        </div>
+      )}
+      <div className="max-w-4xl pb-16">
       <PageHeader
         eyebrow="Survei Baru"
         title="New Survey"
@@ -354,7 +369,8 @@ export default function NewSurvey() {
           </div>
         </Reveal>
       </form>
-    </div>
+      </div>
+    </>
   );
 }
 

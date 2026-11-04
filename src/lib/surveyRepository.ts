@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { checkFile, toSafeFileName, type FileKind } from './fileRules';
+import { splitAudioForUpload } from './audioChunks';
 import type { Supplier, SupplierStatus, SurveyRecord, SurveyStatus, TeamMember } from '../types';
 
 const SUPPLIER_COLUMNS =
@@ -180,6 +181,16 @@ export async function saveSurvey(input: NewSurveyInput): Promise<{ surveyId: str
     return { kind, file, mimeType: check.mimeType };
   });
 
+  const preparedFiles = (
+    await Promise.all(
+      checkedFiles.map(async ({ kind, file, mimeType }) => {
+        if (kind !== 'recording') return [{ kind, file, mimeType }];
+        const chunks = await splitAudioForUpload(file);
+        return chunks.map((chunk) => ({ kind, file: chunk, mimeType: chunk.type || mimeType }));
+      }),
+    )
+  ).flat();
+
   const supplierId = await findOrCreateSupplier(input);
   const surveyId = crypto.randomUUID();
 
@@ -218,7 +229,7 @@ export async function saveSurvey(input: NewSurveyInput): Promise<{ surveyId: str
   }
 
   const recordingIds: string[] = [];
-  for (const { kind, file, mimeType } of checkedFiles) {
+  for (const { kind, file, mimeType } of preparedFiles) {
     const storagePath = `${surveyId}/${crypto.randomUUID()}-${toSafeFileName(file.name)}`;
     const fileId = crypto.randomUUID();
 
